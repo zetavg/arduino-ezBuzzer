@@ -31,109 +31,129 @@
 
 #include <ezBuzzer.h>
 
-ezBuzzer::ezBuzzer(int pin) {
-	_buzzerPin   = pin;
-	_buzzerState = BUZZER_IDLE;
+ezBuzzer::ezBuzzer(int pin)
+{
+    _buzzerPin = pin;
+    _buzzerState = BUZZER_IDLE;
 
-	_delayTime = 0;
-	_beepTime  = 0;
+    _delayTime = 0;
+    _beepTime = 0;
 
-	_startTime = 0;
+    _startTime = 0;
 
-	_melody = 0;
-	_noteDurations = 0;
-	_melodyLength  = 0;
-	_melodyIndex   = 0;
-	_notePauseTime = 0;
+    _melody = 0;
+    _noteDurations = 0;
+    _melodyLength = 0;
+    _melodyIndex = 0;
+    _notePauseTime = 0;
 
-	pinMode(_buzzerPin, OUTPUT);
+    pinMode(_buzzerPin, OUTPUT);
 }
 
+void ezBuzzer::stop(void)
+{
+    noTone(_buzzerPin);
+    digitalWrite(_buzzerPin, LOW);
 
-void ezBuzzer::stop(void){
-	noTone(_buzzerPin);
-	digitalWrite(_buzzerPin, LOW);
-
-	_buzzerState = BUZZER_IDLE;
+    _buzzerState = BUZZER_IDLE;
 }
 
-void ezBuzzer::beep(unsigned long beepTime) {
-	beep(beepTime, 0);
+void ezBuzzer::beep(unsigned long beepTime)
+{
+    beep(beepTime, 0);
 }
 
-void ezBuzzer::beep(unsigned long beepTime, unsigned long delay) {
-	_delayTime = delay;
-	_beepTime  = beepTime;
-	_buzzerState = BUZZER_BEEP_DELAY;
-	_startTime = millis();
+void ezBuzzer::beep(unsigned long beepTime, unsigned long delay)
+{
+    _delayTime = delay;
+    _beepTime = beepTime;
+    _buzzerState = BUZZER_BEEP_DELAY;
+    _startTime = millis();
 }
 
-void ezBuzzer::playMelody(int *melody, int *noteDurations, int length) {
-	_melody = melody;
-	_noteDurations = noteDurations;
-	_melodyLength  = length;
-	_melodyIndex   = 0;
-	_notePauseTime = 0;
+void ezBuzzer::playMelody(int *melody, int *noteDurations, int length, int *notePauseTimes)
+{
+    _melody = melody;
+    _noteDurations = noteDurations;
+    _melodyLength = length;
+    _notePauseTimes = notePauseTimes;
+    _melodyIndex = 0;
+    _notePauseTime = 0;
 
-	_buzzerState = BUZZER_MELODY;
-	_startTime = millis();
+    _buzzerState = BUZZER_MELODY;
+    _startTime = millis();
 }
 
-int ezBuzzer::getState(void) {
-	return _buzzerState;
+int ezBuzzer::getState(void)
+{
+    return _buzzerState;
 }
 
-void ezBuzzer::loop(void) {
+void ezBuzzer::loop(void)
+{
 
-	switch(_buzzerState) {
-		case BUZZER_IDLE:
-			break;
+    switch (_buzzerState)
+    {
+    case BUZZER_IDLE:
+        break;
 
-		case BUZZER_BEEP_DELAY:
-			if ((unsigned long)(millis() - _startTime) >= _delayTime) {
-				_buzzerState = BUZZER_BEEPING;
-				_startTime = millis();
+    case BUZZER_BEEP_DELAY:
+        if ((unsigned long)(millis() - _startTime) >= _delayTime)
+        {
+            _buzzerState = BUZZER_BEEPING;
+            _startTime = millis();
 
-				digitalWrite(_buzzerPin, HIGH);
-			}
+            digitalWrite(_buzzerPin, HIGH);
+        }
 
-			break;
+        break;
 
-		case BUZZER_BEEPING:
-			if ((unsigned long)(millis() - _startTime) >= _beepTime) {
-				_buzzerState = BUZZER_IDLE;
-				digitalWrite(_buzzerPin, LOW);
-			}
+    case BUZZER_BEEPING:
+        if ((unsigned long)(millis() - _startTime) >= _beepTime)
+        {
+            _buzzerState = BUZZER_IDLE;
+            digitalWrite(_buzzerPin, LOW);
+        }
 
-			break;
+        break;
 
-		case BUZZER_MELODY:
-			if(_melodyIndex < _melodyLength) {
-				if(!_notePauseTime) {
-					// to calculate the note duration, take one second divided by the note type.
-					//e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-					int duration = 1000 / _noteDurations[_melodyIndex];
-					tone(_buzzerPin, _melody[_melodyIndex], duration);
+    case BUZZER_MELODY:
+        if (_melodyIndex < _melodyLength)
+        {
+            if (!_notePauseTime)
+            {
+                int duration = _noteDurations[_melodyIndex];
+                tone(_buzzerPin, _melody[_melodyIndex], duration);
 
-					// to distinguish the notes, set a minimum time between them.
-					// the note's duration + 30% seems to work well:
-					_notePauseTime = duration * 1.30;
-					_startTime = millis();
-				}
+                if (_notePauseTimes == nullptr)
+                {
+                    // to distinguish the notes, set a minimum time between them.
+                    // the note's duration + 30% seems to work well:
+                    _notePauseTime = duration * 1.30;
+                }
+                else
+                {
+                    _notePauseTime = _notePauseTimes[_melodyIndex];
+                }
+                _startTime = millis();
+            }
 
-				if ((unsigned long)(millis() - _startTime) >= _notePauseTime) {
-					noTone(_buzzerPin); // stop the tone playing:
-					_notePauseTime = 0;
-					_melodyIndex++; // play next node
-				}
-			} else {
-				noTone(_buzzerPin);
-				_buzzerState = BUZZER_IDLE;
-			}
+            if ((unsigned long)(millis() - _startTime) >= _notePauseTime)
+            {
+                noTone(_buzzerPin); // stop the tone playing:
+                _notePauseTime = 0;
+                _melodyIndex++; // play next node
+            }
+        }
+        else
+        {
+            noTone(_buzzerPin);
+            _buzzerState = BUZZER_IDLE;
+        }
 
-			break;
+        break;
 
-		default:
-			break;
-	}
+    default:
+        break;
+    }
 }
